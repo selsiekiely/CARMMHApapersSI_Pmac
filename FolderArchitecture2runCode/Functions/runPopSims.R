@@ -849,7 +849,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
             props <- simres[1:(na * 2), j, i, 1]
             # Females are elements 1:na; males (na + 1):(na * 2)
             props[(na + 21):(na * 2)] <- 0
-            # Another example - if you wanted to assume 0 harvest on males:
+            # Another example - if you wanted to assume 0 harvest on  males:
             # props[(na + 1):(na * 2)] <- 0
             props <- props / sum(props)
             harvest.byclass[1:(na * 2)] <- harvest[j] * props
