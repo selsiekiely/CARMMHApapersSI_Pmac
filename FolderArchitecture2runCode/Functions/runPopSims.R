@@ -1,5 +1,6 @@
 runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
-                       stratum = NULL, seed = NULL, verbose = TRUE) {
+                       stratum = NULL, harvest = NULL, hScenario = 1,
+                       seed = NULL, verbose = TRUE) {
   # This function runs a set of simulations of the CARMMHA population dynamics model
   # for a given taxonomic unit Sp, a number of iterations nsims and for a number of years nyears
   # if under sensitivity mode (type!="Sim") all parameters at the mean nominal values
@@ -7,17 +8,19 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # Requires
   #  R library progress
   # Inputs
-  #       Sp:      the species code, see details below
-  #       nsims:   the number of iterations to consider
-  #       nyears:  the number of years to run each simulation for
-  #       type:    one of 3 options
+  #     Sp:        the species code, see details below
+  #     nsims:     the number of iterations to consider
+  #     nyears:    the number of years to run each simulation for
+  #     type:      one of 2 options
   #                 1. "Sim", the default which means it should simply run the simulations
   #                 2. "Sens" runs a sensitivity analysis (parameter parS varies, all other are kept fixed at mean)
-  #       parS:    the parameter for which the simulations are being run for if under type==Sim, i.e. under sensitivity mode
-  #       stratum: either NULL (default) or an integer from 1-4 (only valid for Ttru).  If an integer, runs on the
+  #     parS:      the parameter for which the simulations are being run for if under type==Sim, i.e. under sensitivity mode
+  #     stratum:   either NULL (default) or an integer from 1-4 (only valid for Ttru).  If an integer, runs on the
   #                 proportion of the BSE BND population corresponding to that stratum number (see below).
-  #       seed:    if an integer value, then used to set the random number seed; if NULL (the default) no seed is set
-  #       verbose: if TRUE (default) provides output to the console showing which iteration it is on
+  #     harvest:   either NULL (default) or a vector of length nyears giving total harvest per year (see below)
+  #     hScenario: harvest scenario (see below) - only used if harvest is not NULL
+  #     seed:      if an integer value, then used to set the random number seed; if NULL (the default) no seed is set
+  #     verbose:   if TRUE (default) provides output to the console showing which iteration it is on
   #------------------------------------------------------------------------------------------------------------------
   # Details on "Sp" to define species to work with
   #--------------------------------------------------------------------------
@@ -35,6 +38,16 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # Stratum is only valid for Sp = 'Ttru' or 'LowSal'.  In this case, the starting population
   # size is multiplied by the estimated proportion of the population in the corresponding stratum.
   # Stratum names are defined below.
+  #--------------------------------------------------------------------------
+  # Details on harvest and harvest scenarios
+  #--------------------------------------------------------------------------
+  # This extension was added to look at sperm whale recovery from historical commercial whaling
+  # If the harvest argument is not null, then it must be of length nyears, with each element giving the number of whales
+  #  harvested in that year.  These are subtracted from the population each year, after the other population processes have
+  #  taken place.  Note that the same numbers are subtracted from both the oil and non-oil scenarios.
+  #  Also note that no age or stage is allowed to be negative - if the subtracton leaves a negative number, it is set at zero.
+  # The hScenario dictates how the total harvest is divided into ages and stages.  Scenarios are as follows:
+  #  1 - (default) Harvest is in proportion to the ages and stages in the population at each time point.
   #--------------------------------------------------------------------------
   # Outputs
   #       There are several by-products of running the function (but no object returned at the end)
@@ -54,13 +67,17 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   #--------------------------------------------------------------------------
 
   #--------------------------------------------------------------------------
-  # just a check to make sure argument type is well defined
+  # just a check to make sure some arguments are well defined
   if (!(type %in% c("Sim", "Sens"))) {
     stop("Wrong type used; only 'Sim' or 'Sens' allowed; please check argument type")
   }
   # check that if not under type="Sim" the parS argument is defined and not the NULL default
   if (type != "Sim" & is.null(parS)) {
     stop("Under sensitivity analysis, type='Sens', parS cannot be NULL")
+  }
+  
+  if(!is.null(harvest)){
+    if(length(harvest)!=nyears) stop("Length of harvest vector is not equal to number of years")
   }
 
   #--------------------------------------------------------------------------
@@ -796,10 +813,10 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
         ddfr = ftsimoil, frf = rrfsim[j], frf.yr1 = rrfsim[1],
         a1stR = a1stRsim, alasR = na
       )
-      # If we are under constant pop, i.e. under any stock not BND Barataria Bay
+      # If we are under constant pop, i.e. under any stock not BND Barataria Bay and no harvest
       Mnooil <- M0
       # no-oil spill scenario (survival and fecundity reduction factors = 1)
-      if (Sp %in% BB_BND_Sp) {
+      if ((Sp %in% BB_BND_Sp)|(!is.null(harvest))) {
         # since we are under no constant pop, we need to do this step
         # DD for no-oil spill scenario
         ftsimnooil <- ft(Nt = currNnooil, Fmax = Fmaxsim, rho = rhosim, Nnom = N0sim, Fnom = Fnomsim)
@@ -812,7 +829,39 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       # oil spill scenario at j+1 years
       simres[, j + 1, i, 1] <- Moil %*% simres[, j, i, 1]
       # no-oil spill scenario at j+1 years
+      # harvest only applies to no oil scenario
       simres[, j + 1, i, 2] <- Mnooil %*% simres[, j, i, 2]
+      # Subtract off age- and sex-specific harvest - only nooil scenario ------------------
+      if(!is.null(harvest)){
+        # Initialize harvest to zero
+        harvest.byclass <- numeric(dimm)
+        # Divide into age and sex classes
+        # Harvest scenarios go here
+        if(hScenario == 1){
+          # Harvest scenario 1 - harvest proportional to numbers in each age- and sex-class
+          props <- simres[1:(na * 2), j, i, 1]
+          props <- props / sum(props)
+          harvest.byclass[1:(na * 2)] <- harvest[j] * props
+        } else{
+          if(hScenario == 2){
+            # Harvest scenario 2 - harvest proportional to numbers in each age- and sex-class except
+            #   males older than 20 not harvested 
+            props <- simres[1:(na * 2), j, i, 1]
+            # Females are elements 1:na; males (na + 1):(na * 2)
+            props[(na + 21):(na * 2)] <- 0
+            # Another example - if you wanted to assume 0 harvest on males:
+            # props[(na + 1):(na * 2)] <- 0
+            props <- props / sum(props)
+            harvest.byclass[1:(na * 2)] <- harvest[j] * props
+          } else {
+            stop("Harvest scenario hScenario not recognized.")
+          }
+        }
+        # Subtract off harvest; ensure no elements go negative
+        simres[, j + 1, i, 2] <- simres[, j + 1, i, 2] - harvest.byclass
+        ind <- simres[, j + 1, i, 2] < 0
+        simres[ind, j + 1, i, 2] <- 0
+      }
     }
     gc()
   }
@@ -823,8 +872,13 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   TimeSpent <- end_time - start_time
   RunOnThe <- Sys.time()
 
-  # calculate and plot injury measures
-  injury <- getInjury(simres)
+  if(is.null(harvest)){
+    # calculate and plot injury measures
+    injury <- getInjury(simres)
+  } else {
+    # calculate and plot injury measures - but no plots
+    injury <- getInjury(simres, plot = FALSE, show.plot = FALSE)
+  }
 
   #------------------------------------------------------------------
   # save results to corresponding species folder
