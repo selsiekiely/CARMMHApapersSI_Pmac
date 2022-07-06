@@ -65,7 +65,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # Additionally, 3 sets of plots are produced and saved
   #         1. plot of population trajectories; 2. plot of injury metrics; 3. plot of fecundities at year 0
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # just a check to make sure some arguments are well defined
   if (!(type %in% c("Sim", "Sens"))) {
@@ -79,7 +79,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   if(!is.null(harvest)){
     if(length(harvest)!=nyears) stop("Length of harvest vector is not equal to number of years")
   }
-
+  
   #--------------------------------------------------------------------------
   # Set an object to save parameter values used in each iteration
   pars2save <- data.frame(
@@ -89,13 +89,13 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     meanSilerM = NA, dnom = NA, pred = NA, qijs = NA, pxMF = NA,
     M0BND = NA, iS = NA, iPM = NA
   )
-
+  
   #--------------------------------------------------------------------------
   # to time the procedure
   start_time <- Sys.time()
   # set a random seed, to make results reproducible
   if (!is.null(seed)) set.seed(seed)
-
+  
   #--------------------------------------------------------------------------
   # required libraries and functions
   #--------------------------------------------------------------------------
@@ -108,7 +108,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   source("Functions/reqfuns.R") # most functions are here
   source("Functions/SilerFuns.R") # Siler model functions are here
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # Set counters and constants
   #--------------------------------------------------------------------------
@@ -116,10 +116,10 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   ns <- 2 # number of sexes
   nc <- 3 # number of conditions (see details above)
   dimm <- ns * nc * na # number of classes (2 sexes * 3 conditions * number of age classes)
-
+  
   # Define all values of Sp that refer to BB BNDs.
   BB_BND_Sp <- c("Ttru", "Schwackeetal2017", "LowSal")
-
+  
   # Define strata and check stratum being called appropriately
   strata <- c("Island", "Southeast", "Central", "West")
   if (is.null(stratum)) {
@@ -136,7 +136,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # Get all the relevant species information required to run the simulation
   # taken from file "SpeciesDefinitionFile.xlsx"
@@ -152,7 +152,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # that happens for the gestation duration scaling but also
   # for values for which we only have for BND (like the Fmax distribution)
   Ttru <- getSpData("Ttru")
-
+  
   #--------------------------------------------------------------------------
   # scaling for current species with respect to BND, to scale survivals
   # Scaling is by gestation duration (gd)
@@ -166,7 +166,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # reformat the dimensions of object given scaling
   dimm <- ns * nc * na
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # BB BND post oil Survival from Glennie et al 2021 SCR study
   #--------------------------------------------------------------------------
@@ -183,7 +183,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # Survival
   #--------------------------------------------------------------------------
@@ -217,7 +217,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   agesBND <- 0:(naBND - 1)
   # ages if scalling occurred
   ages <- 0:(na - 1)
-
+  
   # objects to hold female and male realizations - Ttru
   pxFs <- matrix(NA, nrow = length(agesBND), ncol = nS)
   pxMs <- matrix(NA, nrow = length(agesBND), ncol = nS)
@@ -233,7 +233,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     SpxFs[, s] <- px(ages * scaling, pf[s, 1], pf[s, 2], pf[s, 3], pf[s, 4], pf[s, 5], scaling = scaling)
     SpxMs[, s] <- px(ages * scaling, pm[s, 1], pm[s, 2], pm[s, 3], pm[s, 4], pm[s, 5], scaling = scaling)
   }
-
+  
   if (type != "Sim") {
     # if running a sensitivity analysis
     if (parS != "ascS") {
@@ -246,7 +246,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       SpxMs <- matrix(rep(rowMeans(SpxMs), ncol(SpxMs)), nrow(SpxMs), ncol(SpxMs))
     }
   }
-
+  
   # arrange as data frame
   # Ttru
   pxFs <- data.frame(pxFs)
@@ -259,7 +259,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   SpxFs <- data.frame(SpxFs)
   SpxMs <- data.frame(SpxMs)
   #--------------------------------------------------------------------------
-
+  
   # get survival reduction - note if BND this is changed after
   srsims <- with(SpInfo, rbeta(nsims, sra, srb) * (sru - srl) + srl)
   if (type != "Sim") {
@@ -270,7 +270,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       srsims <- rep(meanSR, nsims)
     }
   }
-
+  
   # Obtaining P(marked|age) required for survival pre-oil spill
   # See SI file "SurvivalReduction" for a detailed description of this procedure
   # including the production of some of the objects used
@@ -285,7 +285,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   # ensuring this works irrespective of number of simulations being larger than number of samples
   itPM <- sample.int(nrow(predictions), size = nsims, replace = TRUE)
   pars2save$iPM <- itPM
-
+  
   if (type != "Sim") {
     # if running a sensitivity analysis
     if (parS != "PM") {
@@ -294,7 +294,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       predictions <- matrix(rep(colMeans(predictions), nrow(predictions)), nrow(predictions), ncol(predictions), byrow = TRUE)
     }
   }
-
+  
   if (Sp == "LowSal") {
     # Read in the survival changes from NOAA
     LowSalS <- read.csv("InOutBySp/LowSal/BB_AllRegions_Survival.csv", header = TRUE)
@@ -319,7 +319,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       rm(".Random.seed", envir = .GlobalEnv)
     }
   }
-
+  
   #--------------------------------------------------------------------------
   # Initial population size and proportion exposed
   #  also accounting for stratum if required (for BB bottlenose dolphin)
@@ -335,7 +335,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   Nexp <- read.csv(paste0("InOutBySp/", SpInfo$folder, "/N_boot_in_oil.csv"), header = TRUE)
   Nexp <- Nexp[, 2]
   Nexp <- as.vector(Nexp)
-
+  
   # If a stratum analysis, get the proportion of the population in that stratum
   # and multiply Nstart and Nexp appropriately
   if (!is.null(stratum)) {
@@ -347,7 +347,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     Nstart <- Nstart * pstr
     Nexp <- Nexp * pstr
   }
-
+  
   # removing extreme outliers that arise on occasion from GAM simulations
   mult.sd <- 5
   lim.outlier <- mean(Nstart) + mult.sd * sd(Nstart)
@@ -361,7 +361,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   
   # index to link pop size and survival post oil spill, if BND
   iterN <- sample.int(length(Nstart),size = nsims,replace=TRUE)
-
+  
   # Get proportion of population exposed
   pexp <- Nexp / Nstart
   # get the mean values for
@@ -383,7 +383,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       pexp <- rep(meanpexp, length(pexp))
     }
   }
-
+  
   #--------------------------------------------------------------------------
   # The proportion of the population exposed that recovers
   pexprecsims <- with(SpInfo, rbeta(nsims, pra, prb) * (pru - prl) + prl)
@@ -397,7 +397,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   }
   pars2save$per <- pexprecsims
   #--------------------------------------------------------------------------
-
+  
   #--------------------------------------------------------------------------
   # Fecundity
   # get DD fecundity parameters
@@ -430,7 +430,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   pars2save$FnomTtru <- FnomsimsTtru
   # rho
   rhosims <- with(SpInfo, rhoshift + rgamma(nsims, shape = rhoshape, scale = rhoscale))
-
+  
   if (type != "Sim") {
     # if running a sensitivity analysis
     if (parS != "rho") {
@@ -440,7 +440,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   pars2save$rho <- rhosims
-
+  
   #--------------------------------------------------------------------------
   # age at first reproduction
   a1stRsimsTtru <- with(Ttru, rgamma(nsims, shape = sha1str, scale = sca1str))
@@ -483,7 +483,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
   beta.pars <- getBetaDistPars(SpInfo$meanpors, SpInfo$sdpors^2)
   # get post spill reproductive success rate
   pRepPostsims <- rbeta(nsims, beta.pars$alpha, beta.pars$beta)
-
+  
   if (type != "Sim") {
     # if running a sensitivity analysis
     if (parS != "por") {
@@ -493,14 +493,14 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   pars2save$por <- pRepPostsims
-
+  
   #--------------------------------------------------------------------------
   # For BB BND
   # fecundity reduction for Ttru
   beta.pars <- getBetaDistPars(Ttru$meanbrs, Ttru$sdbrs^2)
   # get Baseline reproductive success rate for Ttru
   TtrupRepbasesims <- rbeta(nsims, beta.pars$alpha, beta.pars$beta)
-
+  
   if (type != "Sim") {
     # if running a sensitivity analysis
     if (parS != "BrTt") {
@@ -510,7 +510,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   pars2save$BrTt <- TtrupRepbasesims
-
+  
   # get post spill reproductive success rate for Ttru
   beta.pars <- getBetaDistPars(Ttru$meanpors, Ttru$sdpors^2)
   TtrupRepPostsims <- rbeta(nsims, beta.pars$alpha, beta.pars$beta)
@@ -523,7 +523,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     }
   }
   pars2save$PorTt <- TtrupRepPostsims
-
+  
   #--------------------------------------------------------------------------
   # Define a suitable object to hold the simulation data (i.e. the class sizes)
   #--------------------------------------------------------------------------
@@ -557,41 +557,41 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       reality = c("spill", "nospill")
     )
   )
-
+  
   #--------------------------------------------------------------------------
   # Simulation implementation
   #--------------------------------------------------------------------------
   if (verbose) {
     cat("Species ", Sp, " [", nsims, " simulations under mode ", type,
-      ifelse(is.null(parS), "", paste0(", parameter ", parS)), "]\n",
-      sep = ""
+        ifelse(is.null(parS), "", paste0(", parameter ", parS)), "]\n",
+        sep = ""
     )
     progbar <- progress::progress_bar$new(
       format = " Computing [:bar] :percent eta: :eta ",
       total = nsims
     )
   }
-
+  
   # for each simulation iteration
   for (i in 1:nsims) {
     # Increment the progress bar
     if (verbose) progbar$tick()
-
+    
     # Here go things that are constant across all years for a given iteration
     #------------------------------------------------------------
     # get initial conditions
     #------------------------------------------------------------
-
+    
     # define iteration for the Siler model survival parameters
     iS <- itS[i]
     # and for proportion marked
     iPM <- itPM[i]
     # and for pop size and post-spill survival
     iN <- iterN[i]
-
+    
     #------------------------------------------------------------
     # get initial population size
-
+    
     #--------------------------------------------------------------------------
     # Initial population size: N0
     N0sim <- Nstart[iN]
@@ -601,45 +601,45 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     # First get the number of exposed animals
     pexpsim <- pexp[iN]
     pars2save$pe[i] <- pexpsim
-
+    
     #------------------------------------------------------------------------------
     # proportion of the population exposed that recovers: per
     pexprecsim <- pexprecsims[i]
-
+    
     #------------------------------------------------------------------------------
     # Survival
     femalesur <- SpxFs[, iS]
     malesur <- SpxMs[, iS]
-
+    
     # save mean of female survival, only useful to plot elasticity for ascS
     pars2save$ascS[i] <- mean(femalesur)
-
+    
     #------------------------------------------------------------------------------
     # Survival reduction - for the current Sp
     # note if Sp is BND the object srsim is changed later
     srsim <- srsims[i]
-
+    
     #------------------------------------------------------------
     # Fecundity
     # get DD fecundity parameters
     Fmaxsim <- Fmaxsims[i]
-
+    
     #------------------------------------------------------------
     # Fecundity
     # get DD fecundity parameters
     Fnomsim <- Fnomsims[i]
-
+    
     #------------------------------------------------------------
     # Fecundity
     # get DD fecundity parameters
     rhosim <- rhosims[i]
-
+    
     # obtain sims i age at first reproduction
     a1stRsim <- a1stRsims[i]
-
+    
     # br Baseline reproductive success rate
     pRepbasesim <- pRepbasesims[i]
-
+    
     #------------------------------------------------------------
     # Get transition matrix
     # note dimm = number of sexes * number of conditions * number of age classes
@@ -659,7 +659,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     # get nominal distribution in age and sex class
     ev0 <- eigen(M0BND)
     distNominal <- Re(ev0$vectors[, 1]) / sum(Re(ev0$vectors[, 1]))
-
+    
     # get population averaged survival pre-oil spill
     # see file "survivalReduction" for details
     qijs <- c(distNominal[1:61] * predictions[iPM, ], distNominal[62:122] * predictions[iPM, ]) / sum(c(distNominal[1:61] * predictions[iPM, ], distNominal[62:122] * predictions[iPM, ]))
@@ -679,31 +679,31 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     pars2save$paPM[i] <- sum(predictions[iPM, ]*(distNominal[1:61]+distNominal[62:122]))
     # saves mean P(marked|age), only useful to plot elasticity for PM
     pars2save$PM[i] <- mean(predictions[iPM, ])
-
+    
     # spos survival post oil-spill for BB BND with Glennie et al. SCR analysis
     Spostspill <- SpostOilBB[iN]
     pars2save$spos[i] <- Spostspill
-
+    
     # Ttru survival reduction factor - to be used to scale fecundity reduction later
     srsimTtru <- Spostspill / meanS
     pars2save$srTtru[i] <- srsimTtru
     # constrain survival reduction - this could be changed to sample values of Spostspill that are lower than meanS
     if (srsimTtru > 1) srsimTtru <- 1
-
+    
     # if we are in a Ttru sim, need to replace survival reduction with Ttru value
     if (Sp %in% BB_BND_Sp) {
       srsim <- srsimTtru
     }
     pars2save$SR[i] <- srsim
-
+    
     # make population stable if not Ttru in Barataria Bay
     if (!(Sp %in% BB_BND_Sp)) {
       # this procedure is inspired by the algorithm described in an email
       # sent by LT to TAM on the Tue 6/2/2020 1:21 AM
       # solve for the fecundity that would lead to a constant population
       Fnomsim <- uniroot(getStableF0,
-        interval = c(0.01, 1), ns1 = ns, nc1 = nc, na1 = na, femalesur1 = femalesur,
-        malesur1 = malesur, a1stRsim1 = a1stRsim
+                         interval = c(0.01, 1), ns1 = ns, nc1 = nc, na1 = na, femalesur1 = femalesur,
+                         malesur1 = malesur, a1stRsim1 = a1stRsim
       )$root
       # get transition matrix
       M0 <- getM(
@@ -711,11 +711,11 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
         srf = 1, ddfr = Fnomsim, frf = 1, a1stR = a1stRsim, alasR = na
       )
     }
-
+    
     #------------------------------------------------------------
     # Accounting for the impact of oil
     #------------------------------------------------------------
-
+    
     #------------------------------------------------------------
     # number of years to return to baseline
     # (applies to both survival and fecundity)
@@ -749,13 +749,13 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     yrbssim <- round(mt2l)
     pars2save$y2R[i] <- yrbssim
     #------------------------------------------------------------
-
+    
     # yearly reduction factor for survival
     rfssim <- getRedFac(y1 = srsim, ny2r2n = yrbssim, ny = nyears)
-
+    
     # por: post spill reproductive success rate
     pRepPostsim <- pRepPostsims[i]
-
+    
     # reproduction reduction factor
     # if BB Ttru, no scaling required
     fecRed <- 1 - pRepPostsim / pRepbasesim
@@ -773,10 +773,10 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
       fecRed <- srsim * fecRedTtru / srsimTtru
     }
     pars2save$fecRed[i] <- fecRed
-
+    
     # yearly reduction factor for fecundity
     rrfsim <- getRedFac(y1 = fecRed, ny2r2n = yrbssim, ny = nyears)
-
+    
     #-----------------------------------------------------------
     # Initial population numbers per class
     # Nominal age distribution is normalized eigenvector associated with dominant eigenvalue
@@ -788,18 +788,18 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     simres[, 1, i, 1] <- c(inipopsim[1:(2 * na)] * (1 - pexpsim), inipopsim[1:(2 * na)] * pexpsim * (1 - pexprecsim), inipopsim[1:(2 * na)] * pexpsim * pexprecsim)
     # oil spill did not happen - classes where everyone is not exposed
     simres[, 1, i, 2] <- inipopsim
-
+    
     # Here go things that change each year ------------------
     for (j in 1:(nyears - 1)) {
-
+      
       # first, get the current N needed for the density dependent fecundity calculations
       currNoil <- sum(simres[, j, i, 1]) # classes from oil spill scenario
       currNnooil <- sum(simres[, j, i, 2]) # classes from no-oil spill scenario
-
+      
       # get DD fecundity rate -------------------------------
       # DD in an oil spill scenario
       ftsimoil <- ft(Nt = currNoil, Fmax = Fmaxsim, rho = rhosim, Nnom = N0sim, Fnom = Fnomsim)
-
+      
       # get appropriate low salinity survival multiplier
       LowSalSR_Yr <- 1
       if (Sp == "LowSal") {
@@ -839,24 +839,35 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
         # Harvest scenarios go here
         if(hScenario == 1){
           # Harvest scenario 1 - harvest proportional to numbers in each age- and sex-class
+          # except 1st age class - calves not targetted
           props <- simres[1:(na * 2), j, i, 1]
+          # Remove calves
+          props[1] <- props[na + 1] <- 0
           props <- props / sum(props)
           harvest.byclass[1:(na * 2)] <- harvest[j] * props
         } else{
           if(hScenario == 2){
             # Harvest scenario 2 - harvest proportional to numbers in each age- and sex-class except
-            #   males older than 20 not harvested 
+            #   calves, and males 21 and older not harvested 
             props <- simres[1:(na * 2), j, i, 1]
+            # Remove calves
+            props[1] <- props[na + 1] <- 0
             # Females are elements 1:na; males (na + 1):(na * 2)
-            props[(na + 21):(na * 2)] <- 0
+            props[(na + 22):(na * 2)] <- 0
             # Another example - if you wanted to assume 0 harvest on  males:
             # props[(na + 1):(na * 2)] <- 0
             props <- props / sum(props)
             harvest.byclass[1:(na * 2)] <- harvest[j] * props
           } else {
-            stop("Harvest scenario hScenario not recognized.")
+            stop(paste0("Harvest scenario ", hScenario, " not recognized."))
           }
         }
+        # Deal with calves
+        # Number of mothers harvested is number of adult females times 
+        #   p(calving and calf survives)
+        Nmothers.harvested <- sum(Mnooil[1, ] * harvest.byclass)
+        # Assume all calves (half male and half female) of mothers harvested die
+        harvest.byclass[1] <- harvest.byclass[na + 1] <- Nmothers.harvested / 2
         # Subtract off harvest; ensure no elements go negative
         simres[, j + 1, i, 2] <- simres[, j + 1, i, 2] - harvest.byclass
         ind <- simres[, j + 1, i, 2] < 0
@@ -866,12 +877,12 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     gc()
   }
   if (verbose) progbar$terminate()
-
+  
   # time the procedure
   end_time <- Sys.time()
   TimeSpent <- end_time - start_time
   RunOnThe <- Sys.time()
-
+  
   if(is.null(harvest)){
     # calculate and plot injury measures
     injury <- getInjury(simres)
@@ -879,7 +890,7 @@ runPopSims <- function(Sp, nsims, nyears, type = "Sim", parS = NULL,
     # calculate and plot injury measures - but no plots
     injury <- getInjury(simres, plot = FALSE, show.plot = FALSE)
   }
-
+  
   #------------------------------------------------------------------
   # save results to corresponding species folder
   # file path
