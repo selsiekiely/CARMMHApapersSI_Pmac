@@ -1,30 +1,321 @@
 ---
-title: "PmacHarvestSims"
-author: "Sophia"
-date: "07/07/2022"
-output: html_document
+title: "Gulf of Mexico Sperm Whales:"
+author: "Sophia Kiely"
+date: \today
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    force_captions: yes
+    highlight: pygments
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+subtitle: "Did Sperm whales recover from Historical Commercial Whaling in the Gulf of Mexico prior to the Deep Water Horizon Oil Spill?"
+urlcolor: blue
+csl: mee.csl
+bibliography: biblio.bib
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+******
+
+******
+
+
+\newpage
+## Please find adjoining code at <https://github.com/selsiekiely/CARMMHApapersSI_Pmac/tree/sperm-whale-recovery>.
+
+# Introduction
+
+Our objective is to predict whether the sperm whale (Physeter macrocephalus) population in the US Gulf of Mexico had recovered from historical commercial whaling prior to the Deepwater Horizon oil spill in April 2010. We assume that the population was at carrying capacity prior to the onset of commercial whaling in the Gulf of Mexico, and hypothesize that this carrying capacity was equal to the abundance for this area estimated by [Roberts et al. 2016, 7] based on spatial modelling of line transect data.  We start the population in year 1788 at this abundance, project the population forward using a population dynamics model including whaling harvest (see below) and see if it recovers to the initial population size by 2010.  We include uncertainty on the initial abundance and demographic parameters by running multiple simulations, and sampling from distributions of inputs representing the uncertainty; we do not include uncertainty on harvest numbers.
+
+To do the computations, existing code from Tiago A Marques [Marques 2022], implementing a deterministic, age-and sex-structured discrete-time model for common bottlenose dolphins’ (Tusiorps Truncatus) response to the oil spill [Schwacke et al. In press], was adapted by Marques for offshore species including sperm whales.  This will be adapted by adding harvest. To do this, we need to make assumptions about which ages and sexes the harvest applied to.  We lay out some scenarios below, to receive feedback on them.
+
+Sperm whaling in the Gulf of Mexico primarily took place seasonally, in the months of January to July [Reeves 2011, 41]. Suggested harvesting scenarios are as follows.
+
+
+
+
+
+# Basic RMarkdown tricks
+
+First, we load the `knitr` package that can be of help:
+
+```{r}
+library(knitr)
 ```
 
-## R Markdown
+```{r}
+#Load library to do matrix population modelling
+library(popbio)
+#Load code files from Tiago
+source("buildPPM.R")
+source("GetStablePop.R")
+source("getSpData.R")
+#Load code file from Tiago adapted by Len to add harvest
+source("RunSpWithHarvest.R")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Load the sperm whale population parameters from a spreadsheet
+Pmac <- getSpData("Pmac", file ="SpeciesDefinitionFile.xlsx") 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Set the inter-birth interval required to give a stable population
+#This is the value that Tiago found worked, which is slightly different from that of Lance's
+Pmac$ibnom <- 6.236487
 
-```{r cars}
-summary(cars)
+#Number of years to run model forward
+# 1788 was the first year of documented harvest in the Reeves paper
+# Their effort plot is decadal, starting in 1785, so I'll start from then, and assume whaling started that year
+# DWH oil spill was in 2010, so run through to 2010.
+# Total run, therefore is from 1785 to 2010 - 226 years
+n.years <- 226 
 ```
 
-## Including Plots
+## No harvest scenario
 
-You can also embed plots, for example:
+Do a baseline run, with no harvest, just to check the code.  This should produce no population change.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+#baseline - no harvest, just to check things are working!
+NoHarvestScenario <- runSpWithHarvest(Pmac, n.years)
+plot(1:n.years + 1784,rowSums(NoHarvestScenario),ylim=c(0,2000),ylab="Population size",xlab="Year", type = "l")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Scenario 1 - equal takes in all stages
+
+This scenario (unrealistically) assumes equal take in each of the 8 stages (female calf, female juvenile, female adult, female adult with calf, female adult post-breeding, male calf, male juvenile, male adult).
+
+In pro-rating the total harvest over time, we use Figure 3 from Reeves et al, which gives whaling effort by decade from 1785.  Values have been read by eye from that figure.  We assume that effort was evenly distributed over each decade, and that takes were proportional to effort.  (This last assumption might be unrealistic if resources are being depleted, for example, although Reeves et al. mention that whaling did not stop in the GoM because the stock was exhausted.)
+
+```{r}
+#harvest scenario 1
+#Assume all stages targetted equally, including calves
+stages.to.harvest <- c(1:5, 11:13)
+#Whaling effort by decade, from figure 3 of Reeves paper - should sum to 214
+effort <- c(18,20,2,2,20,25,77,20,20,10)
+#Assume equally spread over the decade
+effort.years <- rep(effort/10, each = 10)
+#Add in the other years
+effort.years <- c(effort.years, numeric(n.years - length(effort.years)))
+#Total of 1070 whales estimated to have been taken (SE 202) (Reeves notes it's likely an underestimate)
+total.taken <- 1070
+whales.taken.per.year.and.stage <- total.taken / (sum(effort.years) * length(stages.to.harvest))
+harvest.matrix1 <- matrix(0, n.years, 16)
+harvest.matrix1[, stages.to.harvest] <- whales.taken.per.year.and.stage * effort.years
+HarvestScenario1 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix1)
+plot(1:n.years + 1776,rowSums(HarvestScenario1),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "Equal harvest across stages scenario.")
+```
+
+Under this scenario, the population has recovered so that by 2010 estimated population size is `r round(sum(HarvestScenario1[n.years, ]))`, `r round(sum(HarvestScenario1[n.years, ])/Pmac$totn * 100)`\% of the way to the carrying capacity of `r Pmac$totn`.
+
+## Scenario 2 - all take on adult females
+
+Adult females are the most important component of the population, demographically speaking.  This scenario assumes that all of the take is on them.  For ease of implementation, we have assumed that this is on stage 3, which is adult females before breeding (i.e., does not include adult females with calves or adult females between breeding).
+
+```{r}
+#harvest scenario 2 - all adult females (stage 3 - i.e.., not with calves or post-calf)
+whales.taken.per.year <- total.taken / (sum(effort.years))
+harvest.matrix2 <- matrix(0, n.years, 16)
+harvest.matrix2[, 3] <- whales.taken.per.year * effort.years
+HarvestScenario2 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix2)
+plot(1:n.years + 1776,rowSums(HarvestScenario2),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "All take on adult females.")
+```
+
+Under this scenario, the population has not recovered: in 2010 estimated population size is `r round(sum(HarvestScenario2[n.years, ]))`, which is only `r round(sum(HarvestScenario2[n.years, ])/Pmac$totn * 100)`\% of the way to the carrying capacity of `r Pmac$totn`.
+
+## Scenario 3 - take in proportion to stable age distribution
+
+This scenario is a little more realistic - it assumes that the proportion of each stage taken is proportional to their stable age proportion at carrying capacity.  These proportions are as follows (the order is the same as that given above when first describing the stages.) 
+
+```{r}
+stage.structure <- HarvestScenario1[1, ]/sum(HarvestScenario1[1, ])
+print(round(stage.structure[c(1:5, 11:13)], 3))
+```
+
+```{r}
+harvest.matrix3 <- matrix(0, n.years, 16)
+for(i in 1:n.years) {
+  harvest.matrix3[i, ] <- effort.years[i] * stage.structure * whales.taken.per.year
+}
+HarvestScenario3 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix3)
+plot(1:n.years + 1776,rowSums(HarvestScenario3),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "Take in proportion to stable age distribution.")
+```
+
+Under this scenario, the population has recovered, with the 2010 estimated population size of `r round(sum(HarvestScenario3[n.years, ]))` being `r round(sum(HarvestScenario3[n.years, ])/Pmac$totn * 100)`\% of the way to carrying capacity.
+
+
+## Finding help online
+
+There are so many resources online that is hard to list just a few, but just in case:
+
+* An RStudio course on RMarkdown is here: https://rmarkdown.rstudio.com/lesson-1.html
+
+At the corresponding RMarkdown sheat sheets are here:
+
+* Here is the [link](https://rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf) 
+
+As you can seen, these are two different ways of providing links in RMarkdown!
+
+A [free access definitive guide on RMarkdown](https://bookdown.org/yihui/rmarkdown/) by Yihui Xie, J. J. Allaire and  Garrett Grolemund is also here. If you don't find what you need there, you are really looking for something out of the ordinary:
+
+Finaly, [Pimp my RMD: a few tips for R Markdown](https://holtzy.github.io/Pimp-my-rmd/)
+by Yan Holtz contains several tips and tricks that might be useful.
+
+## It is dynamic
+
+To get us going we first generate two datasets in this folder, using an existing R data set.
+
+```{r}
+write.table(file="cars1to10.txt",cars[1:10,])
+write.table(file="cars11to20.txt",cars[11:20,])
+```
+
+This allows us to confirm that the exact same code will produce different dynamic results, as a consequence of changing the data we are using.
+
+The plot below will use the object `mydata` to make a plot.
+
+```{r}
+mydata <- read.table(file="cars1to10.txt")
+plot(mydata)
+```
+
+The maximum value for `speed` in this file is `r max(mydata$speed)`. Note this is a dynamic value, we have not really written that number in the .Rmd text. Check the .Rmd to see how that is done,
+
+Now, if after a while your collaborator sends you a new data set, in the non-reproducible research world you would ave to repeate it all. Not here. You just have to read the new data in and the exact same code can be used, now producing diferent results.
+
+
+```{r}
+mydata <- read.table(file="cars11to20.txt")
+plot(mydata)
+```
+
+The maximum value for `speed` in this file is now `r max(mydata$speed)`. Dynamic values rock!
+
+As an example, you can even print here when this document was compiled. This was compiled on `r date()`.
+
+## Hyde and seek
+
+We might want to show code and then the output of it
+
+```{r}
+a <- 3
+b <- 4
+a+b
+```
+
+but we might also just want to show code and no output
+
+```{r,eval=FALSE}
+a <- 3
+b <- 4
+a+b
+```
+
+or vice versa, just the output
+
+```{r,eval=TRUE,echo=FALSE}
+a <- 3
+b <- 4
+a+b
+```
+
+Note there are many such parameters that you can tweak in the code chuck headers, and you can find them in the cheat sheet I provided a link above for. 
+
+# Adding References
+
+One of the big dramas of large reports and thesis are generating references, properly formatted.
+
+That is straingtforward in RMarkdown. This template shows you a way to do so, but you might consider exploring other alternatives. 
+
+You need a file that contains the references (a bib file) and optionally a file that formats the references (I provide the mee.cls as an example). So here we use:
+
+* biblio.bib
+* mee.cls
+
+Then, each time you want to cite a reference, you need to have it in the .bib file. For that I recomend using JABREF (https://www.jabref.org/), but any reference manager that can generate bibtex files will do. Each reference has associated with it a "BibtexKey". Then you just use that with an "@" in front to cite that reference.
+
+As an example, here is a citation, a great resource for GLMs is @Faraway2006, and a good introduction to GAMs is @Wood2006. Ecological regression examples can be found in @Zuur2009b.
+
+As you will see, these references will be present at the end of the document, in a suitably named section (I used "References"!).
+
+Note that if there are funny characters in the .bib file you might face compiling problems!
+
+If you need additional guidance in this process, there is a holding hands document called "StepByStep.pptx" that has a visual tutorial of all these steps with computer screenshots of what needs to be done to make this work. This should be fool proof. If you have any trouble with it please report and I'll update this document.
+
+# Figures and Tables
+
+## Figures
+
+As you have seen above, we can include figures easily as outputs from R
+
+```{r}
+plot(rnorm(100))
+```
+
+However, we can actually include external images easily:
+
+![A legend if needed, here, an RMarkdown book!](rmdbook.jpg)
+
+## Tables
+
+If you want to include a table, you might just print it
+
+```{r}
+head(iris,15)
+```
+
+but that looks, let's face it, rather horrible. The next bext thing is to consider changing the yaml, and adding something to the html output `df_print: paged`, as in
+
+![How to change the yaml header to get improved tables](df_print.JPG)
+
+Try it and you will get something like this
+
+![An improved table](improvedtable.JPG)
+
+Another option be to explore the `kable` fuction, from package `knitr`, to help formating the table
+
+```{r}
+kable(cars,caption="A table with the dataset cars")
+```
+
+There are much fancier table types, and additional packages for table formatting. Take a peak e.g. here:
+
+https://rfortherestofus.com/2019/11/how-to-make-beautiful-tables-in-r/
+
+If you care to make an example using some of the additional table formatting packages found there (including `DT`,`gt`,`kableExtra`, `formattable`, `reactable` and/or `flextable`) please consider contributing it to this document. The tables you get from using `reactable` seem especially fancy, but getting them up and running seems to require some time investment.
+
+
+# About output format
+
+This template can be knited into an html, a pdf or word document. 
+
+For pdfs you might need additional software installed like a Latex system.
+
+We are currently it is optimized for html, so it might require minor tweaking for rendering pdf and word with optimal format. As an example of minor formatting differences depending on the compiling considered, in the pdf the date of compilation is outputed by default in the header, while that does not happen in the html.
+
+The header of an .Rmd file contains yaml that allows one to control the document. There are many many features that you can costumize. 
+
+Just as an example, try to add a line that says `code_folding: hide` and then try `code_folding: show`, so go from this
+
+![Header without code folding!](header.JPG)
+
+to this
+
+![Header with code folding!](headerwithcodefolding.JPG)
+
+and then compare what happens to the code in the html.
+
+Note that you can control the output of each of the html, pdf and word documents separately, by changing arguments under the sub-headings under the `output:` heading, `html_document`, `word_document` and `pdf_document`, respectively.
+
+# Contributors
+
+Many folks have provided inputs and requests that have improved this document. 
+
+If you have sent me inputs your name should be listed here. If it is not, plese complain!
