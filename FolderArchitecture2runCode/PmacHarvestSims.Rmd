@@ -35,14 +35,15 @@ bibliography: biblio.bib
 
 # Introduction
 
+Sperm Whale populations in the Gulf of Mexico have been negatively impacted by anthropogenic effects throughout history. This statistical paper is one positive human impact in the wake of conservation efforts to restore the Gulf of Mexico after 490000m**3 of crude oil was spilled from the Deep Water Horizon Oil Rig in April 2010. Unusual Mortality Rates were recorded with higher than average strandings of Sperm Whales[NOAA, 2021] and an unknown death toll lost at sea. Little monitoring of population numbers prior to the spill was carried out`      but with highly sophisticated new statistical software we are able to use existing spatial density models to predict pre-spill population counts.
+
+# Method
+
 Our objective is to predict whether the sperm whale (Physeter macrocephalus) population in the US Gulf of Mexico had recovered from historical commercial whaling prior to the Deepwater Horizon oil spill in April 2010. We assume that the population was at carrying capacity prior to the onset of commercial whaling in the Gulf of Mexico, and hypothesize that this carrying capacity was equal to the abundance for this area estimated by [Roberts et al. 2016, 7] based on spatial modelling of line transect data.  We start the population in year 1788 at this abundance, project the population forward using a population dynamics model including whaling harvest (see below) and see if it recovers to the initial population size by 2010.  We include uncertainty on the initial abundance and demographic parameters by running multiple simulations, and sampling from distributions of inputs representing the uncertainty; we do not include uncertainty on harvest numbers.
 
 To do the computations, existing code from Tiago A Marques [Marques 2022], implementing a deterministic, age-and sex-structured discrete-time model for common bottlenose dolphins’ (Tusiorps Truncatus) response to the oil spill [Schwacke et al. In press], was adapted by Marques for offshore species including sperm whales.  This will be adapted by adding harvest. To do this, we need to make assumptions about which ages and sexes the harvest applied to.  We lay out some scenarios below, to receive feedback on them.
 
 Sperm whaling in the Gulf of Mexico primarily took place seasonally, in the months of January to July [Reeves 2011, 41]. Suggested harvesting scenarios are as follows.
-
-
-
 
 
 # Basic RMarkdown tricks
