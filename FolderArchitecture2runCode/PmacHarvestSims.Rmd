@@ -55,14 +55,20 @@ library(knitr)
 ```
 
 ```{r}
+library(readxl)
+SpeciesDefinitionFile <- read_excel("C:/Users/Sophia/CARMMHApapersSI/FolderArchitecture2runCode/InputFiles/SpeciesDefinitionFile.xlsx")
+View(SpeciesDefinitionFile)
+```
+
+```{r}
 #Load library to do matrix population modelling
 library(popbio)
 #Load code files from Tiago
-source("buildPPM.R")
-source("GetStablePop.R")
-source("getSpData.R")
+source("C:/Users/Sophia/CARMMHApapersSI/buildPPM.R")
+source("C:/Users/Sophia/CARMMHApapersSI/GetStablePop.R")
+source("C:/Users/Sophia/CARMMHApapersSI/getSpData.R")
 #Load code file from Tiago adapted by Len to add harvest
-source("RunSpWithHarvest.R")
+source("C:/Users/Sophia/CARMMHApapersSI/RunSpWithHarvest.R")
 
 #Load the sperm whale population parameters from a spreadsheet
 Pmac <- getSpData("Pmac", file ="SpeciesDefinitionFile.xlsx") 
@@ -108,10 +114,27 @@ effort.years <- c(effort.years, numeric(n.years - length(effort.years)))
 #Total of 1070 whales estimated to have been taken (SE 202) (Reeves notes it's likely an underestimate)
 total.taken <- 1070
 whales.taken.per.year.and.stage <- total.taken / (sum(effort.years) * length(stages.to.harvest))
-harvest.matrix1 <- matrix(0, n.years, 16)
-harvest.matrix1[, stages.to.harvest] <- whales.taken.per.year.and.stage * effort.years
-HarvestScenario1 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix1)
-plot(1:n.years + 1776,rowSums(HarvestScenario1),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "Equal harvest across stages scenario.")
+
+```
+
+
+```{r}
+hScenario <- 1
+runPopSims(Sp = Sp, nsims = nsims, nyears = nyears, seed = 7134672,
+           harvest = harvest, hScenario = hScenario)
+load(file=paste0("InOutBySp/", SpInfo$folder, "/", Sp, "simres", nsims, "Sim.RData"))
+s1res = matrix(NA, ncol = nyears, nrow = nsims)
+for(i in 1:nsims) {
+  s1res[i, ] = colSums(simres[, , i, 2])
+}
+
+
+ylims <- range(c(s1res))
+plot(s1res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Best guess")
+for(i in 1:nsims){
+  lines(s1res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
+}
+lines(colMeans(s1res), type = "l", lwd = 3, col = "#1b2ac8")  
 ```
 
 Under this scenario, the population has recovered so that by 2010 estimated population size is `r round(sum(HarvestScenario1[n.years, ]))`, `r round(sum(HarvestScenario1[n.years, ])/Pmac$totn * 100)`\% of the way to the carrying capacity of `r Pmac$totn`.
