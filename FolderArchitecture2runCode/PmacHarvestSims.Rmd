@@ -85,39 +85,52 @@ Pmac$ibnom <- 6.236487
 n.years <- 226 
 ```
 
-## No harvest scenario
+## Scenario 1 - best guess scenario
 
-Do a baseline run, with no harvest, just to check the code.  This should produce no population change.
-
+The harvest is proportional to the numbers in each age- and sex-class except the 1st age class - calves are not targeted.
 ```{r}
-#baseline - no harvest, just to check things are working!
-NoHarvestScenario <- runSpWithHarvest(Pmac, n.years)
-plot(1:n.years + 1784,rowSums(NoHarvestScenario),ylim=c(0,2000),ylab="Population size",xlab="Year", type = "l")
+hScenario <- 1
+runPopSims(Sp = Sp, nsims = nsims, nyears = nyears, seed = 7134672,
+           harvest = harvest, hScenario = hScenario)
+load(file=paste0("InOutBySp/", SpInfo$folder, "/", Sp, "simres", nsims, "Sim.RData"))
+s1res = matrix(NA, ncol = nyears, nrow = nsims)
+for(i in 1:nsims) {
+  s1res[i, ] = colSums(simres[, , i, 2])
+}
 ```
 
-## Scenario 1 - equal takes in all stages
+## Scenario 2 - best case (smallest take, biggest pop size, proportional harvest)
 
-This scenario (unrealistically) assumes equal take in each of the 8 stages (female calf, female juvenile, female adult, female adult with calf, female adult post-breeding, male calf, male juvenile, male adult).
-
-In pro-rating the total harvest over time, we use Figure 3 from Reeves et al, which gives whaling effort by decade from 1785.  Values have been read by eye from that figure.  We assume that effort was evenly distributed over each decade, and that takes were proportional to effort.  (This last assumption might be unrealistic if resources are being depleted, for example, although Reeves et al. mention that whaling did not stop in the GoM because the stock was exhausted.)
 
 ```{r}
-#harvest scenario 1
-#Assume all stages targetted equally, including calves
-stages.to.harvest <- c(1:5, 11:13)
-#Whaling effort by decade, from figure 3 of Reeves paper - should sum to 214
-effort <- c(18,20,2,2,20,25,77,20,20,10)
-#Assume equally spread over the decade
-effort.years <- rep(effort/10, each = 10)
-#Add in the other years
-effort.years <- c(effort.years, numeric(n.years - length(effort.years)))
-#Total of 1070 whales estimated to have been taken (SE 202) (Reeves notes it's likely an underestimate)
-total.taken <- 1070
-whales.taken.per.year.and.stage <- total.taken / (sum(effort.years) * length(stages.to.harvest))
+hScenario <- 1
+#Create larger population size, temporarily
+# Note - best to back up the N_boot.csv file!
+Nfile <- paste0("InOutBySp/", SpInfo$folder, "/N_boot.csv")
+Nstart <- read.csv(Nfile, header = TRUE)
+Nstart.larger <- Nstart * (1 / 0.35)
+#Replace N_boot file, temporarily
+write.csv(Nstart.larger$x, Nfile)
+#Run sim
+runPopSims(Sp = Sp, nsims = nsims, nyears = nyears, seed = 7134672,
+           harvest = harvest, hScenario = hScenario)
+#Put back old N_boot numbers
+write.csv(Nstart$x, Nfile)
+load(file=paste0("InOutBySp/", SpInfo$folder, "/", Sp, "simres", nsims, "Sim.RData"))
+s2res = matrix(NA, ncol = nyears, nrow = nsims)
+for(i in 1:nsims) {
+  s2res[i, ] = colSums(simres[, , i, 2])
+}
+
+ylims <- range(c(s2res))
+plot(s2res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Best case")
+for(i in 1:nsims){
+  lines(s2res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
+}
+lines(colMeans(s2res), type = "l", lwd = 3, col = "#1b2ac8")  
 
 ```
-
-
+## dont know what below is
 ```{r}
 hScenario <- 1
 runPopSims(Sp = Sp, nsims = nsims, nyears = nyears, seed = 7134672,
@@ -137,42 +150,59 @@ for(i in 1:nsims){
 lines(colMeans(s1res), type = "l", lwd = 3, col = "#1b2ac8")  
 ```
 
-Under this scenario, the population has recovered so that by 2010 estimated population size is `r round(sum(HarvestScenario1[n.years, ]))`, `r round(sum(HarvestScenario1[n.years, ])/Pmac$totn * 100)`\% of the way to the carrying capacity of `r Pmac$totn`.
 
-## Scenario 2 - all take on adult females
+#Scenario 3 - worst case (largest take, smallest pop size, harvest more on females)
 
-Adult females are the most important component of the population, demographically speaking.  This scenario assumes that all of the take is on them.  For ease of implementation, we have assumed that this is on stage 3, which is adult females before breeding (i.e., does not include adult females with calves or adult females between breeding).
-
-```{r}
-#harvest scenario 2 - all adult females (stage 3 - i.e.., not with calves or post-calf)
-whales.taken.per.year <- total.taken / (sum(effort.years))
-harvest.matrix2 <- matrix(0, n.years, 16)
-harvest.matrix2[, 3] <- whales.taken.per.year * effort.years
-HarvestScenario2 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix2)
-plot(1:n.years + 1776,rowSums(HarvestScenario2),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "All take on adult females.")
-```
-
-Under this scenario, the population has not recovered: in 2010 estimated population size is `r round(sum(HarvestScenario2[n.years, ]))`, which is only `r round(sum(HarvestScenario2[n.years, ])/Pmac$totn * 100)`\% of the way to the carrying capacity of `r Pmac$totn`.
-
-## Scenario 3 - take in proportion to stable age distribution
-
-This scenario is a little more realistic - it assumes that the proportion of each stage taken is proportional to their stable age proportion at carrying capacity.  These proportions are as follows (the order is the same as that given above when first describing the stages.) 
+The harvest is proportional to the numbers in each age- and sex-class except calves, and males 21 and older not harvested. This is to account for the possibility of males travelling out of the Gulf of Mexico during part of whaling season and solitary moving whales not a target for whaling vessels. Harvest is more on females which is the worse case scenario for the whales survival.
 
 ```{r}
-stage.structure <- HarvestScenario1[1, ]/sum(HarvestScenario1[1, ])
-print(round(stage.structure[c(1:5, 11:13)], 3))
-```
+hScenario <- 2
+runPopSims(Sp = Sp, nsims = nsims, nyears = nyears, seed = 7134672,
+           harvest = harvest * 2, hScenario = hScenario)
+load(file=paste0("InOutBySp/", SpInfo$folder, "/", Sp, "simres", nsims, "Sim.RData"))
+s3res = matrix(NA, ncol = nyears, nrow = nsims)
+for(i in 1:nsims) {
+  s3res[i, ] = colSums(simres[, , i, 2])
 
-```{r}
-harvest.matrix3 <- matrix(0, n.years, 16)
-for(i in 1:n.years) {
-  harvest.matrix3[i, ] <- effort.years[i] * stage.structure * whales.taken.per.year
+ylims <- range(c(s3res))
+plot(s3res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Worst case")
+for(i in 1:nsims){
+  lines(s3res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
 }
-HarvestScenario3 <- runSpWithHarvest(Pmac, n.years, harvest = harvest.matrix3)
-plot(1:n.years + 1776,rowSums(HarvestScenario3),ylim = c(0, 2000), ylab="Population size",xlab="Year", type = "l", main = "Take in proportion to stable age distribution.")
+lines(colMeans(s3res), type = "l", lwd = 3, col = "#1b2ac8")  
+
 ```
 
-Under this scenario, the population has recovered, with the 2010 estimated population size of `r round(sum(HarvestScenario3[n.years, ]))` being `r round(sum(HarvestScenario3[n.years, ])/Pmac$totn * 100)`\% of the way to carrying capacity.
+## Altogether Now
+
+```{r}
+#plot the results
+par(mfrow = c(3, 1))
+
+ylims <- range(c(s1res))
+plot(s1res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Best guess")
+for(i in 1:nsims){
+  lines(s1res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
+}
+lines(colMeans(s1res), type = "l", lwd = 3, col = "#1b2ac8")  
+
+ylims <- range(c(s2res))
+plot(s2res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Best case")
+for(i in 1:nsims){
+  lines(s2res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
+}
+lines(colMeans(s2res), type = "l", lwd = 3, col = "#1b2ac8")  
+
+ylims <- range(c(s3res))
+plot(s3res[i, ], type = "n", ylim = ylims, xlab = "Year", ylab = "Predicted population size", las = 1, main = "Worst case")
+for(i in 1:nsims){
+  lines(s3res[i, ], type = "l", lwd = 0.7, col = rgb(0, 0, 0, 0.15))
+}
+lines(colMeans(s3res), type = "l", lwd = 3, col = "#1b2ac8")  
+
+par(mfrow = c(1, 1))
+```
+
 
 
 ## Finding help online
