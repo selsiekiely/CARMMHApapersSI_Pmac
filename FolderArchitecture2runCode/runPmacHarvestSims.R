@@ -1,8 +1,8 @@
 #This runs sperm whale simulations, with harvest
 
 
-source("Functions/runPopSims.R")
-source("Functions/reqfuns.R")
+source("C:/Users/Sophia/CARMMHApapersSI/FolderArchitecture2runCode/Functions/runPopSims.R")
+source("C:/Users/Sophia/CARMMHApapersSI/FolderArchitecture2runCode/Functions/reqfuns.R")
 Sp <- "Pmac"
 
 #Define number of iterations
@@ -97,3 +97,4 @@ for(i in 1:nsims){
 lines(colMeans(s3res), type = "l", lwd = 3, col = "#1b2ac8")  
 
 par(mfrow = c(1, 1))
+
